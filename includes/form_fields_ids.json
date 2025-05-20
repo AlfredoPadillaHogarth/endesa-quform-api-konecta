@@ -1,0 +1,70 @@
+{
+    "15" : {
+        "agente" : "quform_15_71",
+        "soportes" : "quform_15_78",
+        "nombre_cliente" : "quform_15_3",
+        "telefono" : "quform_15_74",
+        "email_cliente" : "quform_15_73",
+        "cif" : "quform_15_47",
+        "comentarios" : "quform_15_76",
+        "id_lead" : "quform_15_8",
+        "soporte" : "quform_15_60",
+        "cp" : "quform_15_65",
+        "landing" : "quform_15_69",
+        "tarifa" : "quform_15_70",
+        "id_agente" : "quform_15_75"
+    },
+    "18" : {
+        "is_first_step" : true,
+        "telefono" : "quform_18_9",
+        "es_cliente" : "quform_18_56",
+        "cif" : "quform_18_58",
+        "factura" : "quform_18_57", 
+        "id_lead" : "quform_18_36",
+        "sector" : "quform_18_38",
+        "landing" : "quform_18_40",
+        "tarifa" : "quform_18_41",
+        "cp" : "quform_18_39",
+        "soporte" : "quform_18_37"
+    },
+    "19" : { 
+        "telefono" : "quform_19_3",
+        "es_cliente" : "quform_19_38",
+        "cif" : "quform_19_47",
+        "factura" : "quform_19_59",
+        "id_lead" : "quform_19_8",
+        "sector" : "quform_19_73",
+        "landing" : "quform_19_69",
+        "tarifa" : "quform_19_70",
+        "cp": "quform_19_65",
+        "soporte" : "quform_19_60"
+    },
+    "20" : {
+        "is_second_step": true,
+        "factura" : "quform_20_7"
+    },
+    "25" : { 
+        "telefono" : "quform_25_3",
+        "es_cliente" : "quform_25_38",
+        "cif" : "quform_25_47",
+        "factura" : "quform_25_59",
+        "id_lead" : "quform_25_8",
+        "sector" : "quform_25_73",
+        "landing" : "quform_25_69",
+        "tarifa" : "quform_25_70",
+        "cp": "quform_25_65",
+        "soporte" : "quform_25_60"
+    },
+    "26" : { 
+        "telefono" : "quform_26_3",
+        "es_cliente" : "quform_26_38",
+        "cif" : "quform_26_47",
+        "factura" : "quform_26_59",
+        "id_lead" : "quform_26_8",
+        "sector" : "quform_26_73",
+        "landing" : "quform_26_69",
+        "tarifa" : "quform_26_70",
+        "cp": "quform_26_65",
+        "soporte" : "quform_26_60"
+    }
+}

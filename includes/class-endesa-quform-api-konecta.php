@@ -187,12 +187,12 @@ class Endesa_API_Konecta
      */
     private function setup_cron() {
         // Schedule the event if it's not already scheduled
-        if (!wp_next_scheduled('endesa_api_cron_hook')) {
-            wp_schedule_event(time(), 'hourly', 'endesa_api_cron_hook');
+        if (!wp_next_scheduled('endesa_api_konecta_cron_hook')) {
+            wp_schedule_event(time(), 'hourly', 'endesa_api_konecta_cron_hook');
         }
 
         // Add the action hook for the cron job
-        add_action('endesa_api_cron_hook', array($this, 'do_cron_post'));
+        add_action('endesa_api_konecta_cron_hook', array($this, 'do_cron_post'));
     }
 
     /**
