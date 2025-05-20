@@ -2,7 +2,7 @@
 // TODO: Cambiar la conexiona Salesforce por la de Konecta
 // TODO: Cambiar la estructura de datos de la API de Salesforce por la de Konecta
 
-class Endesa_API_Konecta
+class Endesa_Quform_API_Konecta
 {
     private $table_name;
     private $table_rows;
@@ -33,7 +33,9 @@ class Endesa_API_Konecta
         $this->setup_cron();
     }
 
+    //
     // DATABASE MANAGEMENT FUNCTIONS
+    //
     /**
      * Insert a new row into the submissions table.
      * @param string $lead_id
@@ -86,23 +88,6 @@ class Endesa_API_Konecta
      * @return array
      */
     public function get_base_form_data() {
-    }
-
-    /**
-     * Send a POST request to the API.
-     * @param string $url
-     * @param array $data
-     */
-    public function send_post_request($url, $data) {
-    }
-
-    /**
-     * Handle the form submission. This function will be called through a hook.
-     * @param array $result
-     * @param object $form
-     * @return object
-     */
-    public function quform_hook_handler($result, $form) {
     }
 
     /**
@@ -177,6 +162,23 @@ class Endesa_API_Konecta
         ); 
 
         return isset($status_textos[$codigo]) ? $status_textos[$codigo] : 'Unknown HTTP Status Code';
+    }
+
+    /**
+     * Send a POST request to the API.
+     * @param string $url
+     * @param array $data
+     */
+    public function send_post_request($url, $data) {
+    }
+
+    /**
+     * Handle the form submission. This function will be called through a hook.
+     * @param array $result
+     * @param object $form
+     * @return object
+     */
+    public function quform_hook_handler($result, $form) {
     }
 
     //
