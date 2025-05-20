@@ -2,7 +2,7 @@
 /**
 * Plugin Name: Endesa Qform Konecta API Integration
 * Description: A plugin to integrate the Konecta API with Quform submissions.
-* Version: 1.0.0
+* @version ENDESA_API_KONECTA_VERSION
 * Author: Hogarth
 **/
 
@@ -38,5 +38,8 @@ function endesa_api_konecta_init() {
         require_once ENDESA_API_KONECTA_PLUGIN_DIR . 'includes/class-endesa-quform-api-konecta.php';
         $endesa_api_konecta = new Endesa_Quform_API_Konecta();
     }
+
+    // Add settings link to the plugin page
+    add_filter('plugin_action_links_' . plugin_basename(__FILE__), [$endesa_api_konecta, 'add_settings_link']);
 }
 add_action('plugins_loaded', 'endesa_api_konecta_init');
