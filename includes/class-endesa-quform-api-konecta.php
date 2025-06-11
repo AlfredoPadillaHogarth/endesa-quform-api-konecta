@@ -24,7 +24,7 @@ class Endesa_Quform_API_Konecta
     public function __construct() {
         // Initialize variables
         global $wpdb;
-        $this->table_name = $wpdb->prefix . ENDESA_API_TABLE_NAME;
+        $this->table_name = $wpdb->prefix . ENDESA_API_KONECTA_TABLE_NAME;
         $this->table_rows = array();
         $this->api_url = get_option('endesa_api_konecta_url', 'https://endesa-api-514081513771.europe-west1.run.app');
         $this->auth_token = '';
@@ -298,7 +298,47 @@ class Endesa_Quform_API_Konecta
      * @return object
      */
     public function quform_hook_handler($result, $form) {
-        $this->send_post_request($this->api_url . '', $form->getValues());
+        $base_data = $this->get_base_form_data();
+
+        try {
+            // Validate inputs
+            if (!is_object($form)) {
+                error_log('Endesa API Error: Invalid form object');
+                return $result;
+            }
+
+            $form_id = $form->getId();
+            $form_ids = $this->get_selected_form_ids();
+            
+            // Check if we should process this form
+            if (!in_array($form_id, $form_ids)) {
+                return $result;
+            }
+
+            // Get the form values
+            $form_data = $form->getValues();
+
+            // Map the form fields to the base data structure
+            foreach ($base_data['payload'] as $key => $value) {
+                if (isset($this->forms_id_field_map[$form_id][$key]) && 
+                    isset($form_data[$this->forms_id_field_map[$form_id][$key]])) {
+                    $base_data['payload'][$key] = $form_data[$this->forms_id_field_map[$form_id][$key]];
+                }
+            }
+
+            $this->insert_submission(
+                $form_id,
+                $base_data,
+                '',
+                '',
+                false
+            );
+        } catch (Exception $e) {
+            error_log('Endesa API Error: ' . $e->getMessage());
+            return $result;
+        }
+
+        //$this->send_post_request($this->api_url . '', $form->getValues());
     }
 
     //
