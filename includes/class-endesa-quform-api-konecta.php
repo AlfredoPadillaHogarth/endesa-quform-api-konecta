@@ -1,6 +1,15 @@
 <?php
 // TODO: Cambiar la conexiona Salesforce por la de Konecta
 // TODO: Cambiar la estructura de datos de la API de Salesforce por la de Konecta
+// Funciones que hay que hacer:
+// - get_auth: Obtener el token de autenticacion de la API
+// - get_base_form_data: Obtener los datos base del formulario para las solicitudes
+// - send_post_request: Enviar una solicitud POST a la API
+// - quform_hook_handler: Manejar el envio del formulario
+
+if (!defined('WPINC')) {
+    die;
+}
 
 class Endesa_Quform_API_Konecta
 {
@@ -17,7 +26,7 @@ class Endesa_Quform_API_Konecta
         global $wpdb;
         $this->table_name = $wpdb->prefix . ENDESA_API_TABLE_NAME;
         $this->table_rows = array();
-        $this->api_url = $this->get_api_url();
+        $this->api_url = get_option('endesa_api_konecta_url', 'https://gdidmz-qa.endesa.es/PRE');
         $this->auth_token = '';
         $this->token_expiry = '';
         $this->forms_id_field_map = $this->load_id_field_map_json();
@@ -170,6 +179,20 @@ class Endesa_Quform_API_Konecta
      * @param array $data
      */
     public function send_post_request($url, $data) {
+        try {
+            $this->get_auth();
+
+            $this->insert_submission(
+                $data['lead_id'],
+                $data,
+                '',
+                '',
+                false
+            );
+        } catch (Exception $e) {
+            error_log('Error sending POST request: ' . $e->getMessage());
+            return false;
+        }
     }
 
     /**
@@ -179,6 +202,7 @@ class Endesa_Quform_API_Konecta
      * @return object
      */
     public function quform_hook_handler($result, $form) {
+        $this->send_post_request($this->api_url . '', $form->getValues());
     }
 
     //
@@ -190,7 +214,7 @@ class Endesa_Quform_API_Konecta
     private function setup_cron() {
         // Schedule the event if it's not already scheduled
         if (!wp_next_scheduled('endesa_api_konecta_cron_hook')) {
-            wp_schedule_event(time(), 'hourly', 'endesa_api_konecta_cron_hook');
+            wp_schedule_event(time(), 'twicedaily', 'endesa_api_konecta_cron_hook');
         }
 
         // Add the action hook for the cron job
@@ -393,14 +417,6 @@ class Endesa_Quform_API_Konecta
         <input type="password" name="endesa_api_konecta_password" value="<?php echo esc_attr($password); ?>" style="min-width: 300px;">
         <p class="description">Enter your API password</p>
         <?php
-    }
-
-    /**
-     * Get the API URL.
-     */
-    public function get_api_url() {
-        $api_url = get_option('endesa_api_konecta_url', 'https://gdidmz-qa.endesa.es/PRE');
-        return $api_url;
     }
 
     /**
