@@ -26,7 +26,7 @@ class Endesa_Quform_API_Konecta
         global $wpdb;
         $this->table_name = $wpdb->prefix . ENDESA_API_TABLE_NAME;
         $this->table_rows = array();
-        $this->api_url = get_option('endesa_api_konecta_url', 'https://gdidmz-qa.endesa.es/PRE');
+        $this->api_url = get_option('endesa_api_konecta_url', 'https://endesa-api-514081513771.europe-west1.run.app');
         $this->auth_token = '';
         $this->token_expiry = '';
         $this->forms_id_field_map = $this->load_id_field_map_json();
@@ -90,6 +90,67 @@ class Endesa_Quform_API_Konecta
      * @return string|bool
      */
     private function get_auth() {
+        // Check if token is expired
+        $this->auth_token = get_option('endesa_api_konecta_auth_token');
+        $this->token_expiry = get_option('endesa_api_konecta_token_expiry');
+        if ($this->auth_token && $this->token_expiry > time()) {
+            // Token is valid
+            return;
+        }
+
+        // Token is expired or not set, request a new one
+        $this->api_url = get_option('endesa_api_konecta_url', 'https://endesa-api-514081513771.europe-west1.run.app');
+        $url = $this->api_url . '/tokencosdh';
+        $username = get_option('endesa_api_username', 'endesa2025');
+        $password = get_option('endesa_api_password', 'S3cr3t@.2@2@25');
+        
+        $is_production = ($this->api_url !== 'https://endesa-api-514081513771.europe-west1.run.app');
+        $consumerKey = $is_production ? 'Rhdlqlm5jIwKXkSFcJ9MGRC7uPka' : 'oL26YW23WR0V1tWaU5fGxnKOKyEa';
+        $consumerPassword = $is_production ? 'LvI_qkfv2eQYzfUgUJZlRKpOgRga' : 'DBXmEoownazRWmqIlajY64ZOA2Ya';
+        $post_fields = 'username=' . urlencode($username) . '&password=' . urlencode($password) . '&grant_type=password';
+
+        $curl = curl_init();
+        
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'POST',
+            CURLOPT_POSTFIELDS => json_encode(array(
+                'username' => $username,
+                'password' => $password,
+                'grant_type' => 'password'
+            )),
+            CURLOPT_HTTPHEADER => array(
+                'Content-Type: application/json',
+            ),
+        ));
+        
+        $response = curl_exec($curl);
+        $http_code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        $response = json_decode($response, true);
+        
+        if ($http_code == 200) {
+            $this->auth_token = $response['access_token'];
+            $this->token_expiry = time() + $response['expires_in'];
+            
+            // Store the token on WP Options
+            update_option('endesa_api_konecta_auth_token', $this->auth_token);
+            update_option('endesa_api_konecta_token_expiry', $this->token_expiry);
+            curl_close($curl);    
+            return $this->auth_token;
+        } else {
+            $this->auth_token = '';
+            $this->token_expiry = '';
+            $error_message = curl_error($curl);
+            $this->insert_submission('N/A', array(), 'Error getting auth token: ' . $error_message . ' Response: ' . json_encode($response), $http_code, false);
+            curl_close($curl);
+            return false;
+        }
     }
 
     /**
@@ -97,6 +158,41 @@ class Endesa_Quform_API_Konecta
      * @return array
      */
     public function get_base_form_data() {
+        return array(
+            'payload' => array(
+                'surname' => '',
+                'name' => '',
+                'cnae' => '',
+                'document_type' => '',
+                'document_number' => '',
+                'language' => 'es',
+                'phone' => '',
+                'phone2' => '',
+                'email' => '',
+                'date' => date('Y-m-d'),
+                'supply_address' => '',
+                'stairs' => '',
+                'flat' => '',
+                'door' => '',
+                'cp' => '',
+                'town' => '',
+                'province' => '',
+                'other_address' => '',
+                'cups' => '',
+                'fee' => '',
+                'stretch' => '',
+                'p1' => '',
+                'p2' => '',
+                'p3' => '',
+                'p4' => '',
+                'p5' => '',
+                'p6' => '',
+                'v' => 0,
+                'iban' => '',
+                'offer' => '',
+                'time' => ''
+            )
+        );
     }
 
     /**
@@ -360,11 +456,11 @@ class Endesa_Quform_API_Konecta
      * Render the API url selector field. Testing or production.
      */
     public function render_api_url_field() {
-        $api_url = get_option('endesa_api_konecta_url', 'https://gdidmz-qa.endesa.es/PRE');
+        $api_url = get_option('endesa_api_konecta_url', 'https://endesa-api-514081513771.europe-west1.run.app');
         ?>
         <select name="endesa_api_konecta_url">
-            <option value="https://gdidmz-qa.endesa.es/PRE" <?php selected($api_url, 'https://gdidmz-qa.endesa.es/PRE'); ?>>Testing</option>
-            <option value="https://gdidmz.endesa.es" <?php selected($api_url, 'https://gdidmz.endesa.es'); ?>>Production</option>
+            <option value="https://endesa-api-514081513771.europe-west1.run.app" <?php selected($api_url, 'https://endesa-api-514081513771.europe-west1.run.app'); ?>>Testing</option>
+            <option value="https://endesa-api-514081513771.europe-west1.run.app" <?php selected($api_url, 'https://endesa-api-514081513771.europe-west1.run.app'); ?>>Production</option>
         </select>
         <p class="description">Select the API URL to use for submissions.</p>
         <?php
