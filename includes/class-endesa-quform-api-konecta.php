@@ -93,24 +93,20 @@ class Endesa_Quform_API_Konecta
         // Check if token is expired
         $this->auth_token = get_option('endesa_api_konecta_auth_token');
         $this->token_expiry = get_option('endesa_api_konecta_token_expiry');
-        if ($this->auth_token && $this->token_expiry > time()) {
+        /*
+        if ($this->auth_token) {
             // Token is valid
             return;
         }
+        */
 
         // Token is expired or not set, request a new one
         $this->api_url = get_option('endesa_api_konecta_url', 'https://endesa-api-514081513771.europe-west1.run.app');
-        $url = $this->api_url . '/tokencosdh';
+        $url = $this->api_url . '/auth/login';
         $username = get_option('endesa_api_username', 'endesa2025');
         $password = get_option('endesa_api_password', 'S3cr3t@.2@2@25');
-        
-        $is_production = ($this->api_url !== 'https://endesa-api-514081513771.europe-west1.run.app');
-        $consumerKey = $is_production ? 'Rhdlqlm5jIwKXkSFcJ9MGRC7uPka' : 'oL26YW23WR0V1tWaU5fGxnKOKyEa';
-        $consumerPassword = $is_production ? 'LvI_qkfv2eQYzfUgUJZlRKpOgRga' : 'DBXmEoownazRWmqIlajY64ZOA2Ya';
-        $post_fields = 'username=' . urlencode($username) . '&password=' . urlencode($password) . '&grant_type=password';
 
         $curl = curl_init();
-        
         curl_setopt_array($curl, array(
             CURLOPT_URL => $url,
             CURLOPT_RETURNTRANSFER => true,
@@ -122,25 +118,24 @@ class Endesa_Quform_API_Konecta
             CURLOPT_CUSTOMREQUEST => 'POST',
             CURLOPT_POSTFIELDS => json_encode(array(
                 'username' => $username,
-                'password' => $password,
-                'grant_type' => 'password'
+                'password' => $password
             )),
             CURLOPT_HTTPHEADER => array(
-                'Content-Type: application/json',
+                'Content-Type: application/json'
             ),
         ));
         
         $response = curl_exec($curl);
         $http_code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        $http_code = (int)$http_code;
         $response = json_decode($response, true);
         
-        if ($http_code == 200) {
-            $this->auth_token = $response['access_token'];
-            $this->token_expiry = time() + $response['expires_in'];
+        if ($http_code == 200 || $http_code == 201) {
+            // Updated to check for both token and access_token in response
+            $this->auth_token = isset($response['accessToken']) ? $response['accessToken'] : '';
             
-            // Store the token on WP Options
+            // Store the token in WP Options
             update_option('endesa_api_konecta_auth_token', $this->auth_token);
-            update_option('endesa_api_konecta_token_expiry', $this->token_expiry);
             curl_close($curl);    
             return $this->auth_token;
         } else {
@@ -162,37 +157,88 @@ class Endesa_Quform_API_Konecta
             'payload' => array(
                 'surname' => '',
                 'name' => '',
-                'cnae' => '',
-                'document_type' => '',
+                'cnae' => '0',  // Default value, not empty
+                'document_type' => 'DNI',
                 'document_number' => '',
                 'language' => 'es',
-                'phone' => '',
-                'phone2' => '',
+                'phone' => '+34',
+                'phone2' => '0',  // Default value, not empty
                 'email' => '',
                 'date' => date('Y-m-d'),
-                'supply_address' => '',
-                'stairs' => '',
-                'flat' => '',
-                'door' => '',
-                'cp' => '',
-                'town' => '',
-                'province' => '',
-                'other_address' => '',
+                'supply_address' => '0',  // Default value, not empty
+                'stairs' => '0',  // Default value, not empty
+                'flat' => '0',  // Default value, not empty
+                'door' => '0',  // Default value, not empty
+                'cp' => '0',  // Default value, not empty
+                'town' => '0',  // Default value, not empty
+                'province' => '0',  // Default value, not empty
+                'other_address' => '0',  // Default value, not empty
                 'cups' => '',
-                'fee' => '',
-                'stretch' => '',
-                'p1' => '',
-                'p2' => '',
-                'p3' => '',
-                'p4' => '',
-                'p5' => '',
-                'p6' => '',
-                'v' => 0,
+                'fee' => '0',  // Default value, not empty
+                'stretch' => '0',  // Default value, not empty
+                'p1' => '0',  // Default value, not empty
+                'p2' => '0',  // Default value, not empty
+                'p3' => '0',  // Default value, not empty
+                'p4' => '0',  // Default value, not empty
+                'p5' => '0',  // Default value, not empty
+                'p6' => '0',  // Default value, not empty
+                'v' => '0',
                 'iban' => '',
-                'offer' => '',
-                'time' => ''
+                'offer' => '0',  // Default value, not empty
+                'time' => '00:00'  // Default value, not empty
             )
         );
+    }
+
+    /**
+     * Format and validate the payload data according to API requirements
+     */
+    private function format_payload_data($data) {
+        if (isset($data['payload'])) {
+            // Format phone number
+            if (!empty($data['payload']['phone']) && strpos($data['payload']['phone'], '+') !== 0) {
+                $data['payload']['phone'] = '+' . ltrim($data['payload']['phone'], '+');
+            }
+
+            // Format IBAN
+            if (!empty($data['payload']['iban'])) {
+                $data['payload']['iban'] = str_replace(' ', '', $data['payload']['iban']);
+            }
+
+            // Ensure v is a string
+            if (isset($data['payload']['v'])) {
+                $data['payload']['v'] = (string)$data['payload']['v'];
+            }
+
+            // Validate document_type
+            if (isset($data['payload']['document_type']) && $data['payload']['document_type'] === 'NIF') {
+                $data['payload']['document_type'] = 'DNI';
+            }
+
+            // Ensure required fields are not empty
+            $required_fields = [
+                'cnae', 'supply_address', 'cp', 'town', 'province',
+                'fee', 'stretch', 'p1', 'p2', 'p3', 'p4', 'p5', 'p6',
+                'time', 'offer'
+            ];
+
+            foreach ($required_fields as $field) {
+                if (empty($data['payload'][$field])) {
+                    $data['payload'][$field] = '0';
+                }
+            }
+
+            // Special handling for time field
+            if (empty($data['payload']['time'])) {
+                $data['payload']['time'] = '00:00';
+            }
+
+            // Special handling for phone2
+            if (empty($data['payload']['phone2'])) {
+                $data['payload']['phone2'] = '0';
+            }
+        }
+        return $data;
     }
 
     /**
@@ -277,15 +323,91 @@ class Endesa_Quform_API_Konecta
     public function send_post_request($url, $data) {
         try {
             $this->get_auth();
+            $lead_id = isset($data['payload']['id_lead']) ? $data['payload']['id_lead'] : 'N/A';
 
+            if (!$this->auth_token) {
+                $this->insert_submission($lead_id, $data, 'Error getting auth token', '401', false);
+                return;
+            }
+
+            // Format and validate the data
+            $data = $this->format_payload_data($data);
+
+            $curl = curl_init();
+            curl_setopt_array($curl, array(
+                CURLOPT_URL => $this->api_url . '/dev/v1/signatures',
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_ENCODING => '',
+                CURLOPT_MAXREDIRS => 10,
+                CURLOPT_TIMEOUT => 0,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                CURLOPT_CUSTOMREQUEST => 'POST',
+                CURLOPT_POSTFIELDS => json_encode($data),
+                CURLOPT_HTTPHEADER => array(
+                    'Content-Type: application/json',
+                    'Authorization: Bearer ' . $this->auth_token,
+                    'Cookie: refreshToken=9ad502f4-9603-4908-b9ae-cbba29a5ed60'
+                ),
+            ));
+            
+            // For debugging
+            error_log('Sending payload to ' . $this->api_url . '/dev/v1/signatures: ' . json_encode($data));
+            
+            $response = curl_exec($curl);
+            $http_code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+            
+            // For debugging
+            error_log('Raw API Response: ' . $response);
+            error_log('HTTP Code: ' . $http_code);
+
+            $response = json_decode($response, true);
+            curl_close($curl);
+
+            $response_code = isset($response['code']) ? $response['code'] : $http_code;
+            $response_message = '';
+
+            if (isset($response['error']) && isset($response['error']['details'])) {
+                // Handle validation errors
+                $errors = array();
+                foreach ($response['error']['details'] as $detail) {
+                    $errors[] = $detail['message'];
+                }
+                $response_message = 'Validation errors: ' . implode('; ', $errors);
+            } else {
+                $response_message = isset($response['message']) ? $response['message'] : $this->get_http_code_description($http_code);
+            }
+            
+            if ($http_code == 200 || $http_code == 201) {
+                // Successful submission
+                $this->insert_submission(
+                    $lead_id,
+                    $data,
+                    'Success: ' . $response_message,
+                    $response_code,
+                    true
+                );
+                return true;
+            } else {
+                // Failed submission
+                $this->insert_submission(
+                    $lead_id,
+                    $data,
+                    'Error: ' . $response_message,
+                    $response_code,
+                    false
+                );
+                error_log('Endesa API Error: ' . $response_message);
+                return false;
+            }
+        } catch (Exception $e) {
             $this->insert_submission(
-                $data['lead_id'],
+                $lead_id,
                 $data,
-                '',
-                '',
+                'Error sending POST request: ' . $e->getMessage(),
+                '500',
                 false
             );
-        } catch (Exception $e) {
             error_log('Error sending POST request: ' . $e->getMessage());
             return false;
         }
@@ -298,8 +420,6 @@ class Endesa_Quform_API_Konecta
      * @return object
      */
     public function quform_hook_handler($result, $form) {
-        $base_data = $this->get_base_form_data();
-
         try {
             // Validate inputs
             if (!is_object($form)) {
@@ -315,7 +435,8 @@ class Endesa_Quform_API_Konecta
                 return $result;
             }
 
-            // Get the form values
+            // Get base data structure and form values
+            $base_data = $this->get_base_form_data();
             $form_data = $form->getValues();
 
             // Map the form fields to the base data structure
@@ -326,19 +447,17 @@ class Endesa_Quform_API_Konecta
                 }
             }
 
-            $this->insert_submission(
-                $form_id,
-                $base_data,
-                '',
-                '',
-                false
-            );
+            // For debugging
+            error_log('Form Data to Send: ' . print_r($base_data, true));
+
+            // Send the POST request to the API
+            $this->send_post_request($this->api_url . '/dev/v1/signatures', $base_data);
+            
+            return $result;
         } catch (Exception $e) {
             error_log('Endesa API Error: ' . $e->getMessage());
             return $result;
         }
-
-        //$this->send_post_request($this->api_url . '', $form->getValues());
     }
 
     //
