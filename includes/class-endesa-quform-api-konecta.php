@@ -185,7 +185,8 @@ class Endesa_Quform_API_Konecta
                 'v' => '0',
                 'iban' => '',
                 'offer' => '0',  // Default value, not empty
-                'time' => '00:00'  // Default value, not empty
+                'time' => '00:00',  // Default value, not empty
+                'id_lead' => '0',  // Default value, not empty
             )
         );
     }
@@ -320,13 +321,11 @@ class Endesa_Quform_API_Konecta
      * @param string $url
      * @param array $data
      */
-    public function send_post_request($url, $data) {
+    public function send_post_request($url, $data, $lead_id='N/A') {
         try {
             $this->get_auth();
-            $lead_id = isset($data['payload']['id_lead']) ? $data['payload']['id_lead'] : 'N/A';
-
             if (!$this->auth_token) {
-                $this->insert_submission($lead_id, $data, 'Error getting auth token', '401', false);
+                $this->insert_submission($lead_id, $data['payload'], 'Error getting auth token', '401', false);
                 return;
             }
 
@@ -382,7 +381,7 @@ class Endesa_Quform_API_Konecta
                 // Successful submission
                 $this->insert_submission(
                     $lead_id,
-                    $data,
+                    $data['payload'],
                     'Success: ' . $response_message,
                     $response_code,
                     true
@@ -392,7 +391,7 @@ class Endesa_Quform_API_Konecta
                 // Failed submission
                 $this->insert_submission(
                     $lead_id,
-                    $data,
+                    $data['payload'],
                     'Error: ' . $response_message,
                     $response_code,
                     false
@@ -403,7 +402,7 @@ class Endesa_Quform_API_Konecta
         } catch (Exception $e) {
             $this->insert_submission(
                 $lead_id,
-                $data,
+                $data['payload'],
                 'Error sending POST request: ' . $e->getMessage(),
                 '500',
                 false
@@ -446,13 +445,18 @@ class Endesa_Quform_API_Konecta
                     $base_data['payload'][$key] = $form_data[$this->forms_id_field_map[$form_id][$key]];
                 }
             }
-
+            
+            if (isset($base_data['payload']['id_lead'])) {
+                $lead_id = $base_data['payload']['id_lead'];
+                unset($base_data['payload']['id_lead']);
+            }
+  
             // For debugging
             error_log('Form Data to Send: ' . print_r($base_data, true));
 
             // Send the POST request to the API
-            $this->send_post_request($this->api_url . '/dev/v1/signatures', $base_data);
-            
+            $this->send_post_request($this->api_url . '/dev/v1/signatures', $base_data, $lead_id);
+
             return $result;
         } catch (Exception $e) {
             error_log('Endesa API Error: ' . $e->getMessage());
