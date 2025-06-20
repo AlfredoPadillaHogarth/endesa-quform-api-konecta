@@ -187,6 +187,7 @@ class Endesa_Quform_API_Konecta
                 'offer' => '0',  // Default value, not empty
                 'time' => '00:00',  // Default value, not empty
                 'id_lead' => '0',  // Default value, not empty
+                "signatureVerification" => "1",
             )
         );
     }
