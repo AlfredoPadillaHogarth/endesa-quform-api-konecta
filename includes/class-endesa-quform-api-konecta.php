@@ -197,11 +197,6 @@ class Endesa_Quform_API_Konecta
      */
     private function format_payload_data($data) {
         if (isset($data['payload'])) {
-            // Format phone number
-            if (!empty($data['payload']['phone']) && strpos($data['payload']['phone'], '+') !== 0) {
-                $data['payload']['phone'] = '+' . ltrim($data['payload']['phone'], '+');
-            }
-
             // Format IBAN
             if (!empty($data['payload']['iban'])) {
                 $data['payload']['iban'] = str_replace(' ', '', $data['payload']['iban']);
@@ -213,7 +208,7 @@ class Endesa_Quform_API_Konecta
             }
 
             // Validate document_type
-            if (isset($data['payload']['document_type']) && $data['payload']['document_type'] === 'NIF') {
+            if (isset($data['payload']['document_type']) && $data['payload']['document_type'] !== 'NIF' && $data['payload']['document_type']!== 'DNI' && $data['payload']['document_type']!== 'NIE') {
                 $data['payload']['document_type'] = 'DNI';
             }
 
@@ -241,6 +236,138 @@ class Endesa_Quform_API_Konecta
             }
         }
         return $data;
+    }
+
+    /**
+     * Validate Konecta API fields according to requirements, with specific error messages
+     * @param array $payload
+     * @return array|true Returns true if valid, or array of error messages
+     */
+    private function validate_konecta_fields($payload) {
+        $errors = array();
+        // name: string, required, 1-100 chars
+        if (!isset($payload['name']) || $payload['name'] === '') {
+            $errors[] = 'Name is required.';
+        } elseif (!is_string($payload['name'])) {
+            $errors[] = 'Name must be a string.';
+        } elseif (strlen($payload['name']) < 1) {
+            $errors[] = 'Name must be at least 1 character.';
+        } elseif (strlen($payload['name']) > 100) {
+            $errors[] = 'Name must be at most 100 characters.';
+        }
+        // surname: string, required, 1-100 chars
+        if (!isset($payload['surname']) || $payload['surname'] === '') {
+            $errors[] = 'Surname is required.';
+        } elseif (!is_string($payload['surname'])) {
+            $errors[] = 'Surname must be a string.';
+        } elseif (strlen($payload['surname']) < 1) {
+            $errors[] = 'Surname must be at least 1 character.';
+        } elseif (strlen($payload['surname']) > 100) {
+            $errors[] = 'Surname must be at most 100 characters.';
+        }
+        /*
+        // phone: string, required, E.164 format, allow missing prefix but warn
+        if (!isset($payload['phone']) || $payload['phone'] === '') {
+            $errors[] = 'Phone is required.';
+        } elseif (!is_string($payload['phone'])) {
+            $errors[] = 'Phone must be a string.';
+        } else {
+            $phone = trim($payload['phone']);
+            // Ensure the phone number starts with '+'
+            if (!str_starts_with($phone, '+')) {
+                $phone = '+' . $phone;
+            }
+            $payload['phone'] = $phone;
+
+            // Validate E.164 format after ensuring '+' prefix
+            if (!preg_match('/^\+[1-9]\d{1,14}$/', $payload['phone'])) {
+                $errors[] = 'Phone must be in E.164 format (e.g. +34123456789).';
+            }
+        }
+        */
+
+        // email: string, required, valid email
+        if (!isset($payload['email']) || $payload['email'] === '') {
+            $errors[] = 'Email is required.';
+        } elseif (!is_string($payload['email'])) {
+            $errors[] = 'Email must be a string.';
+        } elseif (!filter_var($payload['email'], FILTER_VALIDATE_EMAIL)) {
+            $errors[] = 'Email must be a valid email address.';
+        }
+        // document_type: string, required, DNI or NIE
+        if (!isset($payload['document_type']) || $payload['document_type'] === '') {
+            $errors[] = 'Document type is required.';
+        } elseif (!is_string($payload['document_type'])) {
+            $errors[] = 'Document type must be a string.';
+        } elseif (!in_array($payload['document_type'], ['DNI', 'NIE', 'NIF'])) {
+            $errors[] = 'Document type must be DNI, NIE, or NIF.';
+        }
+        // document_number: string, required, regex depends on document_type
+        if (!isset($payload['document_number']) || $payload['document_number'] === '') {
+            $errors[] = 'Document number is required.';
+        } elseif (!is_string($payload['document_number'])) {
+            $errors[] = 'Document number must be a string.';
+        } else {
+            $doc = strtoupper($payload['document_number']);
+            $type = isset($payload['document_type']) ? strtoupper($payload['document_type']) : '';
+            if ($type === 'DNI' || $type === 'NIF') {
+                if (!preg_match('/^[0-9]{8}[A-Z]$/', $doc)) {
+                    $errors[] = 'DNI/NIF must be 8 digits followed by a letter (e.g., 12345678Z).';
+                }
+            } elseif ($type === 'NIE') {
+                if (!preg_match('/^[XYZ][0-9]{7}[A-Z]$/', $doc)) {
+                    $errors[] = 'NIE must start with X, Y, or Z, followed by 7 digits and a letter (e.g., X1234567L).';
+                }
+            } elseif ($type === 'CIF') {
+                if (!preg_match('/^[A-HJNPQRSUVW][0-9]{7}[0-9A-J]$/', $doc)) {
+                    $errors[] = 'CIF must start with a letter, followed by 7 digits and a control character (e.g., A1234567B).';
+                }
+            } else {
+                $errors[] = 'Unknown document type for document number validation.';
+            }
+        }
+        // date: string, required, YYYY-MM-DD
+        if (!isset($payload['date']) || $payload['date'] === '') {
+            $errors[] = 'Date is required.';
+        } elseif (!is_string($payload['date'])) {
+            $errors[] = 'Date must be a string.';
+        } elseif (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $payload['date'])) {
+            $errors[] = 'Date must be in YYYY-MM-DD format.';
+        }
+        // iban: string, required, 15-34 chars, remove spaces before validating, must match IBAN structure
+        if (!isset($payload['iban']) || $payload['iban'] === '') {
+            $errors[] = 'IBAN is required.';
+        } elseif (!is_string($payload['iban'])) {
+            $errors[] = 'IBAN must be a string.';
+        } else {
+            $iban_no_spaces = str_replace(' ', '', strtoupper($payload['iban']));
+            if (!preg_match('/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/', $iban_no_spaces)) {
+                $errors[] = 'IBAN must start with 2 letters (country code), 2 digits, and 11-30 alphanumeric characters (spaces are ignored).';
+            } elseif (strlen($iban_no_spaces) < 15 || strlen($iban_no_spaces) > 34) {
+                $errors[] = 'IBAN must be between 15 and 34 characters (spaces are ignored).';
+            }
+        }
+        // cups: string, required, 1-30 chars
+        if (!isset($payload['cups']) || $payload['cups'] === '') {
+            $errors[] = 'CUPS is required.';
+        } elseif (!is_string($payload['cups'])) {
+            $errors[] = 'CUPS must be a string.';
+        } elseif (strlen($payload['cups']) < 1) {
+            $errors[] = 'CUPS must be at least 1 character.';
+        } elseif (strlen($payload['cups']) > 30) {
+            $errors[] = 'CUPS must be at most 30 characters.';
+        }
+        // supply_address: string, required, 1-255 chars
+        if (!isset($payload['supply_address']) || $payload['supply_address'] === '') {
+            $errors[] = 'Supply address is required.';
+        } elseif (!is_string($payload['supply_address'])) {
+            $errors[] = 'Supply address must be a string.';
+        } elseif (strlen($payload['supply_address']) < 1) {
+            $errors[] = 'Supply address must be at least 1 character.';
+        } elseif (strlen($payload['supply_address']) > 255) {
+            $errors[] = 'Supply address must be at most 255 characters.';
+        }
+        return empty($errors) ? true : $errors;
     }
 
     /**
@@ -332,6 +459,9 @@ class Endesa_Quform_API_Konecta
 
             // Format and validate the data
             $data = $this->format_payload_data($data);
+            if (!str_contains($data['payload']['phone'], '+')) {
+                $data['payload']['phone'] = '+'. $data['payload']['phone'];
+            }
 
             $curl = curl_init();
             curl_setopt_array($curl, array(
@@ -367,6 +497,18 @@ class Endesa_Quform_API_Konecta
             $response_code = isset($response['code']) ? $response['code'] : $http_code;
             $response_message = '';
 
+            if (isset($response['isValid']) && $response['isValid'] === true) {
+                // Successful submission
+                $this->insert_submission(
+                    $lead_id,
+                    $data['payload'],
+                    'Success: '. $response_message.''. json_encode($response),
+                    $response_code,
+                    true
+                );
+                return true;
+            }
+
             if (isset($response['error']) && isset($response['error']['details'])) {
                 // Handle validation errors
                 $errors = array();
@@ -383,7 +525,7 @@ class Endesa_Quform_API_Konecta
                 $this->insert_submission(
                     $lead_id,
                     $data['payload'],
-                    'Success: ' . $response_message,
+                    'Success: ' . $response_message . ' ' . json_encode($response),
                     $response_code,
                     true
                 );
@@ -393,7 +535,7 @@ class Endesa_Quform_API_Konecta
                 $this->insert_submission(
                     $lead_id,
                     $data['payload'],
-                    'Error: ' . $response_message,
+                    'Error: ' . $response_message . ' ' . json_encode($response),
                     $response_code,
                     false
                 );
@@ -451,7 +593,18 @@ class Endesa_Quform_API_Konecta
                 $lead_id = $base_data['payload']['id_lead'];
                 unset($base_data['payload']['id_lead']);
             }
-  
+
+            // Validate fields before sending
+            //$validation = $this->validate_konecta_fields($base_data['payload']);
+            $validation = true;
+            if ($validation !== true) {
+                // Log and store validation errors
+                $error_message = 'Validation failed: ' . implode('; ', $validation);
+                error_log('Endesa API Validation Error: ' . $error_message);
+                $this->insert_submission($lead_id ?? 'N/A', $base_data['payload'], $error_message, '422', false);
+                return $result;
+            }
+
             // For debugging
             error_log('Form Data to Send: ' . print_r($base_data, true));
 
