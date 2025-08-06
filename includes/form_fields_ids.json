@@ -13,5 +13,23 @@
         "cnae": "quform_3_126",
         "supply_address": "quform_3_148",
         "fee": "quform_3_149"
+    },
+    "3_files" : {
+        "name" : "quform_3_71",
+        "surname" : "quform_3_79",
+        "phone" : "quform_3_3",
+        "email" : "quform_3_42",
+        "document_type" : "quform_3_86",
+        "document_number" : "quform_3_43",
+        "iban" : "quform_3_123",
+        "cups" : "quform_3_73",
+        "power" : "quform_3_149",
+        "id_lead": "quform_3_8",
+        "cnae": "quform_3_126",
+        "supply_address": "quform_3_148",
+        "fee": "quform_3_149",
+        "p1" : "quform_3_163",
+        "p2" : "quform_3_164",
+        "p3" : "quform_3_161"
     }
 }

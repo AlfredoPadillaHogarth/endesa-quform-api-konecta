@@ -1,12 +1,4 @@
 <?php
-// TODO: Cambiar la conexiona Salesforce por la de Konecta
-// TODO: Cambiar la estructura de datos de la API de Salesforce por la de Konecta
-// Funciones que hay que hacer:
-// - get_auth: Obtener el token de autenticacion de la API
-// - get_base_form_data: Obtener los datos base del formulario para las solicitudes
-// - send_post_request: Enviar una solicitud POST a la API
-// - quform_hook_handler: Manejar el envio del formulario
-
 if (!defined('WPINC')) {
     die;
 }
@@ -26,7 +18,7 @@ class Endesa_Quform_API_Konecta
         global $wpdb;
         $this->table_name = $wpdb->prefix . ENDESA_API_KONECTA_TABLE_NAME;
         $this->table_rows = array();
-        $this->api_url = get_option('endesa_api_konecta_url', 'https://endesa-api-514081513771.europe-west1.run.app');
+        $this->api_url = get_option('endesa_api_konecta_url', 'https://endesa-api-414217091321.europe-southwest1.run.app');
         $this->auth_token = '';
         $this->token_expiry = '';
         $this->forms_id_field_map = $this->load_id_field_map_json();
@@ -101,10 +93,10 @@ class Endesa_Quform_API_Konecta
         */
 
         // Token is expired or not set, request a new one
-        $this->api_url = get_option('endesa_api_konecta_url', 'https://endesa-api-514081513771.europe-west1.run.app');
+        $this->api_url = get_option('endesa_api_konecta_url', 'https://endesa-api-414217091321.europe-southwest1.run.app');
         $url = $this->api_url . '/auth/login';
-        $username = get_option('endesa_api_username', 'endesa2025');
-        $password = get_option('endesa_api_password', 'S3cr3t@.2@2@25');
+        $username = get_option('endesa_api_username', 'user_3pI2pQ');
+        $password = get_option('endesa_api_password', 'btxMR0lgejfDxlV_!Aa1');
 
         $curl = curl_init();
         curl_setopt_array($curl, array(
@@ -176,18 +168,24 @@ class Endesa_Quform_API_Konecta
                 'cups' => '',
                 'fee' => '0',  // Default value, not empty
                 'stretch' => '0',  // Default value, not empty
-                'p1' => '0',  // Default value, not empty
-                'p2' => '0',  // Default value, not empty
-                'p3' => '0',  // Default value, not empty
-                'p4' => '0',  // Default value, not empty
-                'p5' => '0',  // Default value, not empty
-                'p6' => '0',  // Default value, not empty
                 'v' => '0',
                 'iban' => '',
                 'offer' => '0',  // Default value, not empty
                 'time' => '00:00',  // Default value, not empty
                 'id_lead' => '0',  // Default value, not empty
                 "signatureVerification" => "1",
+                /*
+                "confirmSignParams" => array(
+                    "sms" => array(
+                        "0"
+                    )
+                )
+                */
+            ),
+            "confirmSignParams" => array(
+                "sms" => array(
+                    "0"
+                )
             )
         );
     }
@@ -195,7 +193,8 @@ class Endesa_Quform_API_Konecta
     /**
      * Format and validate the payload data according to API requirements
      */
-    private function format_payload_data($data) {
+    private function format_payload_data($data) 
+    {
         if (isset($data['payload'])) {
             // Format IBAN
             if (!empty($data['payload']['iban'])) {
@@ -215,7 +214,7 @@ class Endesa_Quform_API_Konecta
             // Ensure required fields are not empty
             $required_fields = [
                 'cnae', 'supply_address', 'cp', 'town', 'province',
-                'fee', 'stretch', 'p1', 'p2', 'p3', 'p4', 'p5', 'p6',
+                'fee', 'stretch', 'p1', 'p2',
                 'time', 'offer'
             ];
 
@@ -228,6 +227,11 @@ class Endesa_Quform_API_Konecta
             // Special handling for time field
             if (empty($data['payload']['time'])) {
                 $data['payload']['time'] = '00:00';
+            }
+
+            // If pghone is exactly 9 chars, add spanish prefix +34
+            if (strlen($data['payload']['phone']) === 9) {
+                $data['payload']['phone'] = '+34'. $data['payload']['phone'];
             }
 
             // Special handling for phone2
@@ -265,6 +269,7 @@ class Endesa_Quform_API_Konecta
         } elseif (strlen($payload['surname']) > 100) {
             $errors[] = 'Surname must be at most 100 characters.';
         }
+        
         /*
         // phone: string, required, E.164 format, allow missing prefix but warn
         if (!isset($payload['phone']) || $payload['phone'] === '') {
@@ -462,10 +467,22 @@ class Endesa_Quform_API_Konecta
             if (!str_contains($data['payload']['phone'], '+')) {
                 $data['payload']['phone'] = '+'. $data['payload']['phone'];
             }
+            $api_url = '';
+            switch ($this->api_url) {
+                case 'https://endesa-api-414217091321.europe-southwest1.run.app':
+                    $api_url = $this->api_url .  '/prod/v1/signatures';
+                    break;
+                case 'https://endesa-api-963188819140.europe-southwest1.run.app':
+                    $api_url = $this->api_url .  '/stg/v1/signatures';
+                    break;
+                case 'https://endesa-api-514081513771.europe-west1.run.app':
+                    $api_url = $this->api_url . '/dev/v1/signatures';
+                    break;
+            }
 
             $curl = curl_init();
             curl_setopt_array($curl, array(
-                CURLOPT_URL => $this->api_url . '/dev/v1/signatures',
+                CURLOPT_URL =>  $api_url,
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_ENCODING => '',
                 CURLOPT_MAXREDIRS => 10,
@@ -501,7 +518,7 @@ class Endesa_Quform_API_Konecta
                 // Successful submission
                 $this->insert_submission(
                     $lead_id,
-                    $data['payload'],
+                    $data,
                     'Success: '. $response_message.''. json_encode($response),
                     $response_code,
                     true
@@ -524,7 +541,7 @@ class Endesa_Quform_API_Konecta
                 // Successful submission
                 $this->insert_submission(
                     $lead_id,
-                    $data['payload'],
+                    $data,
                     'Success: ' . $response_message . ' ' . json_encode($response),
                     $response_code,
                     true
@@ -534,7 +551,7 @@ class Endesa_Quform_API_Konecta
                 // Failed submission
                 $this->insert_submission(
                     $lead_id,
-                    $data['payload'],
+                    $data,
                     'Error: ' . $response_message . ' ' . json_encode($response),
                     $response_code,
                     false
@@ -545,7 +562,7 @@ class Endesa_Quform_API_Konecta
         } catch (Exception $e) {
             $this->insert_submission(
                 $lead_id,
-                $data['payload'],
+                $data,
                 'Error sending POST request: ' . $e->getMessage(),
                 '500',
                 false
@@ -586,12 +603,38 @@ class Endesa_Quform_API_Konecta
                 if (isset($this->forms_id_field_map[$form_id][$key]) && 
                     isset($form_data[$this->forms_id_field_map[$form_id][$key]])) {
                     $base_data['payload'][$key] = $form_data[$this->forms_id_field_map[$form_id][$key]];
+                    if ($key === 'p1' || $key === 'p2' || $key === 'p3') {
+                        /*
+                        $file_field = $form_data[$this->forms_id_field_map[$form_id][$key]];
+                        if (isset($file_field['name']) && !empty($file_field['name']) && is_file($file_field['path'])) {
+                            $base64_file = base64_encode(file_get_contents($file_field['path']));
+                            $base_data['payload'][$key] = $base64_file;
+                        }
+                        */
+                        $base_data['payload'][$key] = str_replace('\/', '/', base64_encode(file_get_contents(stripslashes($base_data['payload'][$key][0]['path']))));
+                    }
                 }
             }
             
             if (isset($base_data['payload']['id_lead'])) {
                 $lead_id = $base_data['payload']['id_lead'];
                 unset($base_data['payload']['id_lead']);
+            }
+
+            if (isset($base_data['payload']['phone'])) {
+                $base_data['confirmSignParams']['sms'] = array('+34'.$base_data['payload']['phone']);
+            }
+
+            if (str_contains($base_data['payload']['fee'], '>') || str_contains($base_data['payload']['fee'], '\u226')) {
+                $base_data['payload']['p1'] = "Según factura";
+                $base_data['payload']['p2'] = "Según factura";
+                $base_data['payload']['p3'] = "Según factura";
+                $base_data['payload']['p4'] = "Según factura";
+                $base_data['payload']['p5'] = "Según factura";
+                $base_data['payload']['p6'] = "Según factura";
+            } else {
+                $base_data['payload']['p1'] = "Según factura";
+                $base_data['payload']['p2'] = "Según factura";
             }
 
             // Validate fields before sending
@@ -601,7 +644,7 @@ class Endesa_Quform_API_Konecta
                 // Log and store validation errors
                 $error_message = 'Validation failed: ' . implode('; ', $validation);
                 error_log('Endesa API Validation Error: ' . $error_message);
-                $this->insert_submission($lead_id ?? 'N/A', $base_data['payload'], $error_message, '422', false);
+                $this->insert_submission($lead_id ?? 'N/A', $base_data, $error_message, '422', false);
                 return $result;
             }
 
@@ -777,7 +820,8 @@ class Endesa_Quform_API_Konecta
         ?>
         <select name="endesa_api_konecta_url">
             <option value="https://endesa-api-514081513771.europe-west1.run.app" <?php selected($api_url, 'https://endesa-api-514081513771.europe-west1.run.app'); ?>>Testing</option>
-            <option value="https://endesa-api-514081513771.europe-west1.run.app" <?php selected($api_url, 'https://endesa-api-514081513771.europe-west1.run.app'); ?>>Production</option>
+            <option value="https://endesa-api-963188819140.europe-southwest1.run.app" <?php selected($api_url, 'https://endesa-api-963188819140.europe-southwest1.run.app'); ?>>Staging</option>
+            <option value="https://endesa-api-414217091321.europe-southwest1.run.app" <?php selected($api_url, 'https://endesa-api-414217091321.europe-southwest1.run.app') ?>>Produccion</option>
         </select>
         <p class="description">Select the API URL to use for submissions.</p>
         <?php
